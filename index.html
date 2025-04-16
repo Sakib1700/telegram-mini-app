@@ -1,135 +1,121 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Funny Tasks Telegram Mini App</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Telegram Funny Tasks App</title>
   <style>
     body {
       font-family: sans-serif;
-      background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      flex-direction: column;
-      color: #333;
+      background: #f2f2f2;
+      padding: 20px;
+      text-align: center;
     }
     .card {
-      background: #fff;
+      background: white;
       padding: 20px;
-      border-radius: 15px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      text-align: center;
-      width: 90%;
+      border-radius: 12px;
       max-width: 400px;
+      margin: 0 auto;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
     button {
-      background-color: #ff6b6b;
-      color: white;
-      border: none;
       padding: 10px 20px;
-      border-radius: 8px;
+      border: none;
+      background: #0088cc;
+      color: white;
+      border-radius: 6px;
       cursor: pointer;
-      margin-top: 10px;
-    }
-    button:disabled {
-      background-color: gray;
+      margin: 10px 0;
     }
     input {
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
+      padding: 8px;
       width: 80%;
       margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <div class="card" id="app">
-    <h2 id="greeting">Welcome!</h2>
+  <div class="card">
+    <h2 id="welcome">Welcome!</h2>
     <p id="points">Points: 0</p>
-    <button onclick="startTasks()">Start Tasks</button>
-    <div id="taskArea" style="margin-top:20px;"></div>
-    <div id="withdrawArea" style="margin-top:20px; display: none;">
+    <button id="startBtn">Start Tasks</button>
+    <div id="taskArea"></div>
+    <div id="withdrawArea" style="display:none;">
       <button onclick="showWithdrawForm()">Withdraw $0.02</button>
+      <div id="paypalForm" style="display:none;">
+        <input type="email" id="paypalEmail" placeholder="Your PayPal Email"/>
+        <button onclick="submitWithdraw()">Submit</button>
+      </div>
     </div>
-    <div id="paypalForm" style="display: none;">
-      <input type="email" id="paypalEmail" placeholder="Enter PayPal Email">
-      <button onclick="submitWithdraw()">Submit</button>
-    </div>
-  </div>  <script>
+  </div>
+
+  <script>
     let user = {
-      id: '',
-      name: 'User',
+      id: 'guest',
+      name: 'Friend',
       points: 0
     };
-
-    // Telegram WebApp init
-    window.Telegram.WebApp.ready();
-    const tg = window.Telegram.WebApp;
-    if (tg.initDataUnsafe?.user) {
-      user.id = tg.initDataUnsafe.user.id;
-      user.name = tg.initDataUnsafe.user.first_name;
-      document.getElementById('greeting').textContent = `Hi, ${user.name}!`;
-    }
-
-    const taskArea = document.getElementById('taskArea');
-    const pointsEl = document.getElementById('points');
     let taskIndex = 0;
     let clicks = 0;
 
+    // Try to get Telegram user info
+    if (window.Telegram && Telegram.WebApp) {
+      Telegram.WebApp.ready();
+      const tgUser = Telegram.WebApp.initDataUnsafe?.user;
+      if (tgUser) {
+        user.id = tgUser.id;
+        user.name = tgUser.first_name;
+      }
+    }
+
+    document.getElementById("welcome").textContent = "Hi, " + user.name + "!";
+    document.getElementById("startBtn").onclick = startTasks;
+
     const tasks = [
-      () => `Click the button 5 times fast: <button onclick="taskClicks()">Tap me!</button><span id='clickCount'>0</span>`,
-      () => `Match the emoji: <span>🙂</span><br><button onclick="emojiMatch('🙂')">🙂</button><button onclick="emojiMatch('😎')">😎</button>`,
-      () => `Click as soon as you see \"NOW!\": <br><button id=\"reactBtn\" disabled>Wait...</button>`,
-      () => `Guess a number (1-5): <input type=\"number\" id=\"guess\" min=\"1\" max=\"5\"><button onclick=\"guessNumber()\">Guess</button>`,
-      () => `Memorize and repeat: <br>Code: <b id=\"code\">234</b><br><input type=\"text\" id=\"memoryInput\"><button onclick=\"checkMemory()\">Submit</button>`
+      () => `<p>Tap fast: <button onclick="clickTask()">Tap</button> <span id="clickCount">0</span></p>`,
+      () => `<p>Match: Which is 🙂?<br><button onclick="emojiMatch('🙂')">🙂</button> <button onclick="emojiMatch('😎')">😎</button></p>`,
+      () => `<p>React Fast: <button id="reactBtn" disabled>Wait...</button></p>`,
+      () => `<p>Guess number (1-5): <input type="number" id="guess"><button onclick="guessNumber()">Guess</button></p>`,
+      () => `<p>Repeat this code: <b id="code">321</b><br><input id="memoryInput"><button onclick="checkMemory()">Submit</button></p>`
     ];
 
     function startTasks() {
       taskIndex = 0;
-      clicks = 0;
       nextTask();
     }
 
     function nextTask() {
-      if (taskIndex >= tasks.length) {
-        taskIndex = 0;
-      }
-
-      taskArea.innerHTML = tasks[taskIndex]();
+      if (taskIndex >= tasks.length) taskIndex = 0;
+      document.getElementById("taskArea").innerHTML = tasks[taskIndex]();
 
       if (taskIndex === 2) {
-        const btn = document.getElementById('reactBtn');
-        btn.disabled = true;
+        let btn = document.getElementById("reactBtn");
         setTimeout(() => {
-          btn.textContent = 'NOW!';
+          btn.textContent = "NOW!";
           btn.disabled = false;
           btn.onclick = () => {
             addPoints();
             taskIndex++;
             nextTask();
           };
-        }, Math.random() * 2000 + 1000);
+        }, 1000 + Math.random() * 2000);
       }
 
       if (taskIndex === 4) {
-        document.getElementById('code').textContent = '234';
+        document.getElementById("code").textContent = "321";
       }
 
-      if (taskIndex !== 2) {
-        taskIndex++;
-      }
+      if (taskIndex !== 2) taskIndex++;
     }
 
-    function taskClicks() {
+    function clickTask() {
       clicks++;
-      document.getElementById('clickCount').textContent = clicks;
+      document.getElementById("clickCount").textContent = clicks;
       if (clicks >= 5) {
         clicks = 0;
         addPoints();
+        taskIndex++;
         nextTask();
       }
     }
@@ -137,64 +123,56 @@
     function emojiMatch(choice) {
       if (choice === '🙂') {
         addPoints();
+        taskIndex++;
         nextTask();
       } else {
-        alert('Try again!');
+        alert("Try again!");
       }
     }
 
     function guessNumber() {
-      const userGuess = parseInt(document.getElementById('guess').value);
-      const number = Math.floor(Math.random() * 5) + 1;
-      if (userGuess === number) {
-        addPoints();
-      } else {
-        alert(`Wrong! It was ${number}`);
-      }
+      let guess = parseInt(document.getElementById("guess").value);
+      let correct = Math.floor(Math.random() * 5) + 1;
+      if (guess === correct) addPoints();
+      else alert("Wrong! It was " + correct);
+      taskIndex++;
       nextTask();
     }
 
     function checkMemory() {
-      const val = document.getElementById('memoryInput').value;
-      if (val === '234') {
-        addPoints();
-      } else {
-        alert('Wrong code!');
-      }
+      let val = document.getElementById("memoryInput").value;
+      if (val === "321") addPoints();
+      else alert("Wrong code!");
+      taskIndex++;
       nextTask();
     }
 
     function addPoints() {
       user.points += 10;
-      pointsEl.textContent = `Points: ${user.points}`;
+      document.getElementById("points").textContent = "Points: " + user.points;
       if (user.points >= 200) {
-        document.getElementById('withdrawArea').style.display = 'block';
+        document.getElementById("withdrawArea").style.display = "block";
       }
     }
 
     function showWithdrawForm() {
-      document.getElementById('paypalForm').style.display = 'block';
+      document.getElementById("paypalForm").style.display = "block";
     }
 
     function submitWithdraw() {
-      const email = document.getElementById('paypalEmail').value;
-      if (!validateEmail(email)) {
-        alert('Enter a valid email');
+      const email = document.getElementById("paypalEmail").value;
+      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+        alert("Invalid email!");
         return;
       }
-      const payload = {
-        id: user.id,
-        name: user.name,
-        score: user.points,
+      alert("Request submitted. You'll get $0.02 soon!");
+      console.log({
+        telegram_id: user.id,
+        username: user.name,
+        points: user.points,
         paypal: email
-      };
-      // Example: Save to GitHub Gist or backend
-      console.log('Sending to GitHub backend:', payload);
-      alert('Submitted! We will send $0.02 to your PayPal soon.');
+      });
     }
-
-    function validateEmail(email) {
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    }
-  </script></body>
+  </script>
+</body>
 </html>
