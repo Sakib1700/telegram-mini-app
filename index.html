@@ -3,39 +3,403 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Telegram Mini App</title>
+    <title>🎮 Telegram Mini Games</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             text-align: center;
-            padding: 20px;
-            background-color: #f5f5f5;
+            background: #f0f2f5;
+            padding: 10px;
+        }
+        .menu, .game-container {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 10px auto;
+            max-width: 400px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         button {
             background: #0088cc;
             color: white;
             border: none;
             padding: 10px 20px;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
+            margin: 5px;
+            width: 80%;
+        }
+        #points {
+            font-weight: bold;
+            color: #0088cc;
+            font-size: 18px;
+        }
+        .back-btn {
+            background: #ff5555;
+            width: auto;
+        }
+        .hidden {
+            display: none !important;
+        }
+        /* Snake Game Canvas */
+        #snake-canvas {
+            border: 2px solid #0088cc;
+            margin: 10px auto;
+        }
+        /* Tic-Tac-Toe Grid */
+        #tic-tac-toe-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            margin: 10px auto;
+            max-width: 200px;
+        }
+        #tic-tac-toe-grid div {
+            aspect-ratio: 1;
+            border: 2px solid #0088cc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        /* Memory Game Grid */
+        #memory-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            margin: 10px auto;
+            max-width: 250px;
+        }
+        #memory-grid div {
+            aspect-ratio: 1;
+            background: #0088cc;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+        #memory-grid div.hidden {
+            background: #ddd !important;
+            color: transparent !important;
         }
     </style>
 </head>
 <body>
-    <h1>Welcome to My Mini App! 👋</h1>
-    <p>Try clicking the button below:</p>
-    <button onclick="sendData()">Send "Hello" to Telegram</button>
-    
+    <!-- Main Menu -->
+    <div id="menu" class="menu">
+        <h1>🎮 Mini Games</h1>
+        <p>Total Points: <span id="points">0</span></p>
+        <button onclick="showGame('memory')">🃏 Memory Game</button>
+        <button onclick="showGame('tictactoe')">❌⭕ Tic-Tac-Toe</button>
+        <button onclick="showGame('snake')">🐍 Snake</button>
+        <button onclick="showGame('clicker')">🔥 Quick Clicker</button>
+    </div>
+
+    <!-- Memory Game -->
+    <div id="memory-game" class="game-container hidden">
+        <h2>🃏 Memory Game</h2>
+        <p>Match pairs to earn 10 points!</p>
+        <div id="memory-grid"></div>
+        <button class="back-btn" onclick="showMenu()">← Back to Menu</button>
+    </div>
+
+    <!-- Tic-Tac-Toe Game -->
+    <div id="tictactoe-game" class="game-container hidden">
+        <h2>❌⭕ Tic-Tac-Toe</h2>
+        <p>Win = 15 points | Draw = 5 points</p>
+        <div id="tic-tac-toe-grid"></div>
+        <button class="back-btn" onclick="showMenu()">← Back to Menu</button>
+    </div>
+
+    <!-- Snake Game -->
+    <div id="snake-game" class="game-container hidden">
+        <h2>🐍 Snake</h2>
+        <p>Earn 1 point per food eaten!</p>
+        <canvas id="snake-canvas" width="200" height="200"></canvas>
+        <button onclick="startSnake()">Start Game</button>
+        <button class="back-btn" onclick="showMenu()">← Back to Menu</button>
+    </div>
+
+    <!-- Quick Clicker Game -->
+    <div id="clicker-game" class="game-container hidden">
+        <h2>🔥 Quick Clicker</h2>
+        <p>Click as fast as you can in 10 seconds!</p>
+        <button id="clicker-btn" style="font-size: 24px; padding: 20px;">CLICK ME!</button>
+        <p id="clicker-timer">Time left: 10s</p>
+        <p id="clicker-score">Score: 0</p>
+        <button class="back-btn" onclick="showMenu()">← Back to Menu</button>
+    </div>
+
     <script>
+        // Telegram WebApp init
         const tg = window.Telegram.WebApp;
-        
-        // Expands the app to full screen
         tg.expand();
-        
-        function sendData() {
-            tg.sendData("Hello from my Mini App!");
-            tg.close(); // Close the app after sending
+
+        // Reward points system
+        let points = localStorage.getItem('tg_points') || 0;
+        document.getElementById('points').textContent = points;
+
+        function addPoints(amount) {
+            points = parseInt(points) + amount;
+            localStorage.setItem('tg_points', points);
+            document.getElementById('points').textContent = points;
+            tg.HapticFeedback.impactOccurred('light'); // Vibrate on reward
+        }
+
+        // ===== Navigation =====
+        function showMenu() {
+            document.getElementById('menu').classList.remove('hidden');
+            document.getElementById('memory-game').classList.add('hidden');
+            document.getElementById('tictactoe-game').classList.add('hidden');
+            document.getElementById('snake-game').classList.add('hidden');
+            document.getElementById('clicker-game').classList.add('hidden');
+        }
+
+        function showGame(gameId) {
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById(`${gameId}-game`).classList.remove('hidden');
+            
+            // Initialize game if needed
+            if (gameId === 'memory') initMemoryGame();
+            if (gameId === 'tictactoe') initTicTacToe();
+            if (gameId === 'snake') resetSnake();
+            if (gameId === 'clicker') resetClicker();
+        }
+
+        // ===== GAME 1: Memory Game =====
+        let flippedCards = [], matchedPairs = 0;
+        const memoryCards = ['A', 'A', 'B', 'B', 'C', 'C', 'D', 'D'];
+
+        function initMemoryGame() {
+            const grid = document.getElementById('memory-grid');
+            grid.innerHTML = '';
+            flippedCards = [];
+            matchedPairs = 0;
+            
+            // Shuffle cards
+            memoryCards.sort(() => Math.random() - 0.5).forEach((card, i) => {
+                const cardEl = document.createElement('div');
+                cardEl.textContent = card;
+                cardEl.dataset.index = i;
+                cardEl.classList.add('hidden');
+                cardEl.onclick = flipCard;
+                grid.appendChild(cardEl);
+            });
+        }
+
+        function flipCard() {
+            if (flippedCards.length < 2 && !this.classList.contains('matched')) {
+                this.classList.remove('hidden');
+                flippedCards.push(this);
+                if (flippedCards.length === 2) checkMatch();
+            }
+        }
+
+        function checkMatch() {
+            const [card1, card2] = flippedCards;
+            if (card1.textContent === card2.textContent) {
+                card1.classList.add('matched');
+                card2.classList.add('matched');
+                matchedPairs++;
+                if (matchedPairs === memoryCards.length / 2) {
+                    addPoints(10);
+                    setTimeout(() => alert('You won 10 points!'), 300);
+                }
+            } else {
+                setTimeout(() => {
+                    card1.classList.add('hidden');
+                    card2.classList.add('hidden');
+                }, 1000);
+            }
+            flippedCards = [];
+        }
+
+        // ===== GAME 2: Tic-Tac-Toe =====
+        let ticTacToeBoard = ['', '', '', '', '', '', '', '', ''];
+        let currentPlayer = 'X';
+
+        function initTicTacToe() {
+            const grid = document.getElementById('tic-tac-toe-grid');
+            grid.innerHTML = '';
+            ticTacToeBoard = ['', '', '', '', '', '', '', '', ''];
+            currentPlayer = 'X';
+            
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.dataset.index = i;
+                cell.onclick = () => makeMove(i);
+                grid.appendChild(cell);
+            }
+        }
+
+        function makeMove(index) {
+            if (ticTacToeBoard[index] === '' && !checkWinner()) {
+                ticTacToeBoard[index] = currentPlayer;
+                updateTicTacToe();
+                if (!checkWinner()) {
+                    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                    if (currentPlayer === 'O') setTimeout(botMove, 500);
+                }
+            }
+        }
+
+        function botMove() {
+            const emptyCells = ticTacToeBoard.reduce((acc, cell, i) => {
+                if (cell === '') acc.push(i);
+                return acc;
+            }, []);
+            if (emptyCells.length > 0) {
+                const randomIndex = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                ticTacToeBoard[randomIndex] = 'O';
+                updateTicTacToe();
+                checkWinner();
+                currentPlayer = 'X';
+            }
+        }
+
+        function updateTicTacToe() {
+            const cells = document.getElementById('tic-tac-toe-grid').children;
+            for (let i = 0; i < cells.length; i++) {
+                cells[i].textContent = ticTacToeBoard[i];
+            }
+        }
+
+        function checkWinner() {
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+                [0, 4, 8], [2, 4, 6]             // Diagonals
+            ];
+
+            for (const pattern of winPatterns) {
+                const [a, b, c] = pattern;
+                if (ticTacToeBoard[a] && ticTacToeBoard[a] === ticTacToeBoard[b] && ticTacToeBoard[a] === ticTacToeBoard[c]) {
+                    setTimeout(() => {
+                        alert(ticTacToeBoard[a] === 'X' ? 'You win! +15 points' : 'Bot wins!');
+                        if (ticTacToeBoard[a] === 'X') addPoints(15);
+                        else addPoints(5);
+                        initTicTacToe();
+                    }, 100);
+                    return true;
+                }
+            }
+
+            if (!ticTacToeBoard.includes('')) {
+                setTimeout(() => {
+                    alert('Draw! +5 points');
+                    addPoints(5);
+                    initTicTacToe();
+                }, 100);
+                return true;
+            }
+
+            return false;
+        }
+
+        // ===== GAME 3: Snake =====
+        const snakeCanvas = document.getElementById('snake-canvas');
+        const snakeCtx = snakeCanvas.getContext('2d');
+        let snake = [], food = {}, dx = 0, dy = 0, snakeGameLoop, snakeScore = 0;
+
+        function resetSnake() {
+            snakeCanvas.style.display = 'block';
+            snake = [{x: 100, y: 100}];
+            generateFood();
+            dx = 10; dy = 0;
+            snakeScore = 0;
+            if (snakeGameLoop) clearInterval(snakeGameLoop);
+            document.addEventListener('keydown', changeDirection);
+        }
+
+        function startSnake() {
+            resetSnake();
+            snakeGameLoop = setInterval(updateSnake, 100);
+        }
+
+        function generateFood() {
+            food = {
+                x: Math.floor(Math.random() * 20) * 10,
+                y: Math.floor(Math.random() * 20) * 10
+            };
+        }
+
+        function updateSnake() {
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+            snake.unshift(head);
+
+            // Check food collision
+            if (head.x === food.x && head.y === food.y) {
+                snakeScore++;
+                addPoints(1);
+                generateFood();
+            } else {
+                snake.pop();
+            }
+
+            // Check wall/self collision
+            if (
+                head.x < 0 || head.x >= snakeCanvas.width ||
+                head.y < 0 || head.y >= snakeCanvas.height ||
+                snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y)
+            ) {
+                clearInterval(snakeGameLoop);
+                alert(`Game Over! Score: ${snakeScore}`);
+                return;
+            }
+
+            drawSnake();
+        }
+
+        function drawSnake() {
+            snakeCtx.clearRect(0, 0, snakeCanvas.width, snakeCanvas.height);
+            snakeCtx.fillStyle = '#0088cc';
+            snake.forEach(segment => snakeCtx.fillRect(segment.x, segment.y, 10, 10));
+            snakeCtx.fillStyle = 'red';
+            snakeCtx.fillRect(food.x, food.y, 10, 10);
+        }
+
+        function changeDirection(e) {
+            const key = e.key;
+            if (key === 'ArrowUp' && dy !== 10) { dx = 0; dy = -10; }
+            else if (key === 'ArrowDown' && dy !== -10) { dx = 0; dy = 10; }
+            else if (key === 'ArrowLeft' && dx !== 10) { dx = -10; dy = 0; }
+            else if (key === 'ArrowRight' && dx !== -10) { dx = 10; dy = 0; }
+        }
+
+        // ===== GAME 4: Quick Clicker =====
+        let clickerScore = 0, clickerTime = 10, clickerTimer;
+
+        function resetClicker() {
+            clearInterval(clickerTimer);
+            clickerScore = 0;
+            clickerTime = 10;
+            document.getElementById('clicker-btn').textContent = 'CLICK ME!';
+            document.getElementById('clicker-timer').textContent = 'Time left: 10s';
+            document.getElementById('clicker-score').textContent = 'Score: 0';
+            document.getElementById('clicker-btn').onclick = handleClickerClick;
+        }
+
+        function handleClickerClick() {
+            if (clickerTime === 10) {
+                clickerTimer = setInterval(() => {
+                    clickerTime--;
+                    document.getElementById('clicker-timer').textContent = `Time left: ${clickerTime}s`;
+                    if (clickerTime <= 0) {
+                        clearInterval(clickerTimer);
+                        document.getElementById('clicker-btn').onclick = null;
+                        document.getElementById('clicker-btn').textContent = 'TIME UP!';
+                        addPoints(clickerScore);
+                        setTimeout(resetClicker, 2000);
+                    }
+                }, 1000);
+            }
+            clickerScore++;
+            document.getElementById('clicker-score').textContent = `Score: ${clickerScore}`;
         }
     </script>
 </body>
