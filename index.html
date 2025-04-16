@@ -1,187 +1,162 @@
 <!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Telegram Funny Tasks</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mini Bitcoin</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="//whephiwuma.com/sdk.js" data-zone="9221717" data-sdk="show_9221717"></script>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: Arial, sans-serif;
       background: #f2f2f2;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      background: #fff;
+      border-radius: 15px;
       padding: 20px;
       text-align: center;
-    }
-    .card {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
       max-width: 400px;
-      margin: 0 auto;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      width: 100%;
     }
     button {
-      padding: 10px 20px;
-      border: none;
-      background: #0088cc;
+      background-color: #0088cc;
       color: white;
-      border-radius: 6px;
+      border: none;
+      padding: 10px 20px;
+      margin: 10px;
+      border-radius: 8px;
       cursor: pointer;
-      margin: 10px 0;
     }
-    input {
-      padding: 8px;
+    #taskArea, #withdrawArea {
+      margin-top: 20px;
+    }
+    #emailInput {
+      padding: 10px;
       width: 80%;
-      margin-top: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h2 id="welcome">Welcome!</h2>
-    <p id="points">Points: 0</p>
+  <div class="container">
+    <h2 id="welcome">Hi, Friend!</h2>
+    <p>Points: <span id="points">0</span></p>
     <button id="startBtn">Start Tasks</button>
-    <div id="taskArea"></div>
-    <div id="withdrawArea" style="display:none;">
-      <button onclick="showWithdrawForm()">Withdraw $0.02</button>
-      <div id="paypalForm" style="display:none;">
-        <input type="email" id="paypalEmail" placeholder="Your PayPal Email"/>
-        <button onclick="submitWithdraw()">Submit</button>
-      </div>
+    <div id="taskArea" style="display:none"></div>
+    <div id="withdrawArea" style="display:none">
+      <input type="email" id="emailInput" placeholder="Enter PayPal Email" /><br />
+      <button onclick="submitEmail()">Submit</button>
     </div>
   </div>  <script>
-    let user = {
-      id: 'guest',
-      name: 'Friend',
-      points: 0
-    };
+    const tg = window.Telegram.WebApp;
+    let user = tg.initDataUnsafe.user || { id: 'demo', username: 'Friend' };
+    document.getElementById('welcome').innerText = `Hi, ${user.username || 'Friend'}!`;
+
+    let points = 0;
     let taskIndex = 0;
-    let clicks = 0;
-
-    if (window.Telegram && Telegram.WebApp) {
-      Telegram.WebApp.ready();
-      const tgUser = Telegram.WebApp.initDataUnsafe?.user;
-      if (tgUser) {
-        user.id = tgUser.id;
-        user.name = tgUser.first_name;
-      }
-    }
-
-    document.getElementById("welcome").textContent = "Hi, " + user.name + "!";
-    document.getElementById("startBtn").onclick = startTasks;
+    const pointDisplay = document.getElementById('points');
+    const taskArea = document.getElementById('taskArea');
+    const withdrawArea = document.getElementById('withdrawArea');
 
     const tasks = [
-      () => `<p>Tap fast: <button onclick="clickTask()">Tap</button> <span id="clickCount">0</span></p>`,
-      () => `<p>Match: Which is 🙂?<br><button onclick="emojiMatch('🙂')">🙂</button> <button onclick="emojiMatch('😎')">😎</button></p>`,
-      () => `<p>React Fast: <button id="reactBtn" disabled>Wait...</button></p>`,
-      () => `<p>Guess number (1-5): <input type="number" id="guess"><button onclick="guessNumber()">Guess</button></p>`,
-      () => `<p>Repeat this code: <b id="code">321</b><br><input id="memoryInput"><button onclick="checkMemory()">Submit</button></p>`
+      () => {
+        taskArea.innerHTML = '<p>Tap as fast as you can!</p><button onclick="completeTask()">TAP!</button>';
+      },
+      () => {
+        const emojis = ['😀','😎','🐱','🍕','⚽'];
+        const match = emojis[Math.floor(Math.random() * emojis.length)];
+        taskArea.innerHTML = `<p>Find: ${match}</p>` + emojis.map(e => `<button onclick="${e === match ? 'completeTask()' : ''}">${e}</button>`).join(' ');
+      },
+      () => {
+        const start = Date.now();
+        setTimeout(() => {
+          taskArea.innerHTML = '<p>Click NOW!</p><button onclick="checkReaction()">NOW!</button>';
+        }, Math.random()*3000+1000);
+        window.checkReaction = () => {
+          const time = Date.now() - start;
+          if(time > 1000) completeTask();
+        }
+      },
+      () => {
+        const num = Math.floor(Math.random()*10);
+        taskArea.innerHTML = `<p>Guess the number (0-9)</p><input type='number' id='guessNum' /><button onclick='checkGuess(${num})'>Guess</button>`;
+      },
+      () => {
+        taskArea.innerHTML = '<p>Remember this: ABC123</p>';
+        setTimeout(() => {
+          taskArea.innerHTML = `<p>Enter it:</p><input id='memory'/><button onclick='checkMemory()'>Submit</button>`;
+        }, 2000);
+      }
     ];
 
-    function startTasks() {
-      taskIndex = 0;
-      nextTask();
-    }
-
-    function nextTask() {
-      if (taskIndex >= tasks.length) taskIndex = 0;
-      document.getElementById("taskArea").innerHTML = tasks[taskIndex]();
-
-      if (taskIndex === 2) {
-        let btn = document.getElementById("reactBtn");
-        setTimeout(() => {
-          btn.textContent = "NOW!";
-          btn.disabled = false;
-          btn.onclick = () => {
-            addPoints();
-            taskIndex++;
-            nextTask();
-          };
-        }, 1000 + Math.random() * 2000);
-      }
-
-      if (taskIndex === 4) {
-        document.getElementById("code").textContent = "321";
-      }
-
-      if (taskIndex !== 2) taskIndex++;
-    }
-
-    function clickTask() {
-      clicks++;
-      document.getElementById("clickCount").textContent = clicks;
-      if (clicks >= 5) {
-        clicks = 0;
-        addPoints();
-        taskIndex++;
-        nextTask();
-      }
-    }
-
-    function emojiMatch(choice) {
-      if (choice === '🙂') {
-        addPoints();
-        taskIndex++;
-        nextTask();
-      } else {
-        alert("Try again!");
-      }
-    }
-
-    function guessNumber() {
-      let guess = parseInt(document.getElementById("guess").value);
-      let correct = Math.floor(Math.random() * 5) + 1;
-      if (guess === correct) addPoints();
-      else alert("Wrong! It was " + correct);
-      taskIndex++;
-      nextTask();
+    function checkGuess(correct) {
+      const guess = document.getElementById('guessNum').value;
+      if (+guess === correct) completeTask();
     }
 
     function checkMemory() {
-      let val = document.getElementById("memoryInput").value;
-      if (val === "321") addPoints();
-      else alert("Wrong code!");
-      taskIndex++;
-      nextTask();
+      const val = document.getElementById('memory').value;
+      if (val === 'ABC123') completeTask();
     }
 
-    function addPoints() {
-      user.points += 10;
-      document.getElementById("points").textContent = "Points: " + user.points;
-      if (user.points >= 200) {
-        document.getElementById("withdrawArea").style.display = "block";
+    function completeTask() {
+      points += 10;
+      pointDisplay.innerText = points;
+      taskIndex++;
+      if (taskIndex < tasks.length) {
+        showAdAndRun(tasks[taskIndex]);
+      } else {
+        taskArea.innerHTML = '<p>All tasks completed!</p>';
+        if(points >= 200) withdrawArea.style.display = 'block';
       }
     }
 
-    function showWithdrawForm() {
-      document.getElementById("paypalForm").style.display = "block";
+    document.getElementById('startBtn').addEventListener('click', () => {
+      taskIndex = 0;
+      points = 0;
+      pointDisplay.innerText = 0;
+      withdrawArea.style.display = 'none';
+      showAdAndRun(tasks[0]);
+      taskArea.style.display = 'block';
+    });
+
+    function showAdAndRun(callback) {
+      show_9221717('pop').then(() => {
+        callback();
+      }).catch(() => {
+        callback();
+      });
     }
 
-    function submitWithdraw() {
-      const email = document.getElementById("paypalEmail").value.trim();
-      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailPattern.test(email)) {
-        alert("Invalid email!");
+    function submitEmail() {
+      const email = document.getElementById('emailInput').value;
+      if (!email.match(/^\S+@\S+\.\S+$/)) {
+        alert('Invalid email!');
         return;
       }
 
-      alert("Request submitted. You'll get $0.02 soon!");
-
+      // Example GitHub Gist or API submission placeholder
       fetch("https://api.telegram.org/bot8168793684:AAEO8Nvc3OXc_pYmw4-lddMl3bUJ-3wX6mo/sendMessage", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: "8168793684",
-          text: `\u{1F911} New Withdrawal Request:\n\nName: ${user.name}\nUser ID: ${user.id}\nPoints: ${user.points}\nPayPal: ${email}`
+          text: `Withdrawal Request:\nUser: @${user.username}\nID: ${user.id}\nPoints: ${points}\nPayPal: ${email}`
         })
+      }).then(() => {
+        alert("Request sent to admin.");
+        withdrawArea.innerHTML = '<p>Request Sent!</p>';
+      }).catch(() => {
+        alert("Failed to send request.");
       });
-
-      // Reset after withdrawal
-      user.points = 0;
-      document.getElementById("points").textContent = "Points: 0";
-      document.getElementById("withdrawArea").style.display = "none";
-      document.getElementById("paypalForm").style.display = "none";
-      document.getElementById("paypalEmail").value = "";
     }
   </script></body>
 </html>
