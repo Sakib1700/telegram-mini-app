@@ -1,9 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Telegram Funny Tasks App</title>
+  <title>Telegram Funny Tasks</title>
   <style>
     body {
       font-family: sans-serif;
@@ -48,9 +47,7 @@
         <button onclick="submitWithdraw()">Submit</button>
       </div>
     </div>
-  </div>
-
-  <script>
+  </div>  <script>
     let user = {
       id: 'guest',
       name: 'Friend',
@@ -59,7 +56,6 @@
     let taskIndex = 0;
     let clicks = 0;
 
-    // Try to get Telegram user info
     if (window.Telegram && Telegram.WebApp) {
       Telegram.WebApp.ready();
       const tgUser = Telegram.WebApp.initDataUnsafe?.user;
@@ -160,19 +156,32 @@
     }
 
     function submitWithdraw() {
-      const email = document.getElementById("paypalEmail").value;
-      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+      const email = document.getElementById("paypalEmail").value.trim();
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(email)) {
         alert("Invalid email!");
         return;
       }
+
       alert("Request submitted. You'll get $0.02 soon!");
-      console.log({
-        telegram_id: user.id,
-        username: user.name,
-        points: user.points,
-        paypal: email
+
+      fetch("https://api.telegram.org/bot8168793684:AAEO8Nvc3OXc_pYmw4-lddMl3bUJ-3wX6mo/sendMessage", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          chat_id: "8168793684",
+          text: `\u{1F911} New Withdrawal Request:\n\nName: ${user.name}\nUser ID: ${user.id}\nPoints: ${user.points}\nPayPal: ${email}`
+        })
       });
+
+      // Reset after withdrawal
+      user.points = 0;
+      document.getElementById("points").textContent = "Points: 0";
+      document.getElementById("withdrawArea").style.display = "none";
+      document.getElementById("paypalForm").style.display = "none";
+      document.getElementById("paypalEmail").value = "";
     }
-  </script>
-</body>
+  </script></body>
 </html>
