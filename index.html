@@ -78,17 +78,19 @@
     const taskArea = document.getElementById('taskArea');
     const pointsEl = document.getElementById('points');
     let taskIndex = 0;
+    let clicks = 0;
 
     const tasks = [
       () => `Click the button 5 times fast: <button onclick="taskClicks()">Tap me!</button><span id='clickCount'>0</span>`,
       () => `Match the emoji: <span>🙂</span><br><button onclick="emojiMatch('🙂')">🙂</button><button onclick="emojiMatch('😎')">😎</button>`,
-      () => `Click as soon as you see "NOW!": <br><button id="reactBtn" disabled>Wait...</button>`,
-      () => `Guess a number (1-5): <input type="number" id="guess" min="1" max="5"><button onclick="guessNumber()">Guess</button>`,
-      () => `Memorize and repeat: <br>Code: <b id="code">234</b><br><input type="text" id="memoryInput"><button onclick="checkMemory()">Submit</button>`
+      () => `Click as soon as you see \"NOW!\": <br><button id=\"reactBtn\" disabled>Wait...</button>`,
+      () => `Guess a number (1-5): <input type=\"number\" id=\"guess\" min=\"1\" max=\"5\"><button onclick=\"guessNumber()\">Guess</button>`,
+      () => `Memorize and repeat: <br>Code: <b id=\"code\">234</b><br><input type=\"text\" id=\"memoryInput\"><button onclick=\"checkMemory()\">Submit</button>`
     ];
 
     function startTasks() {
       taskIndex = 0;
+      clicks = 0;
       nextTask();
     }
 
@@ -96,27 +98,32 @@
       if (taskIndex >= tasks.length) {
         taskIndex = 0;
       }
-      taskArea.innerHTML = tasks[taskIndex++]();
 
-      if (taskIndex === 3) {
-        // For reaction test
+      taskArea.innerHTML = tasks[taskIndex]();
+
+      if (taskIndex === 2) {
         const btn = document.getElementById('reactBtn');
+        btn.disabled = true;
         setTimeout(() => {
           btn.textContent = 'NOW!';
           btn.disabled = false;
           btn.onclick = () => {
             addPoints();
+            taskIndex++;
             nextTask();
           };
         }, Math.random() * 2000 + 1000);
       }
 
-      if (taskIndex === 5) {
-        document.getElementById('code').textContent = '234'; // static code
+      if (taskIndex === 4) {
+        document.getElementById('code').textContent = '234';
+      }
+
+      if (taskIndex !== 2) {
+        taskIndex++;
       }
     }
 
-    let clicks = 0;
     function taskClicks() {
       clicks++;
       document.getElementById('clickCount').textContent = clicks;
